@@ -1,47 +1,41 @@
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
+
 import CreatePostDto from './dto/createPost.dto';
-import Post from './post.interface';
 import UpdatePostDto from './dto/updatePost.dto';
+import Post from './post.entity';
 
 @Injectable()
 export default class PostsService {
-  private lastPostId = 0;
-  private posts: Post[] = [];
+  constructor(
+    @InjectRepository(Post)
+    private postsRepository: Repository<Post>,
+  ) {}
 
-  getAllPosts() {
-    return this.posts;
+  findAll() {
+    return this.postsRepository.find();
   }
 
-  getPostById(id: number) {
-    const post = this.posts.find((post) => post.id === id);
+  async findOne(id: number) {
+    const post = await this.postsRepository.findOne(id);
     if (!post) throw new NotFoundException('Post not found');
 
     return post;
   }
 
-  replacePost(id: number, post: UpdatePostDto) {
-    const postIndex = this.posts.findIndex((post) => post.id === id);
-    if (postIndex < 0) throw new NotFoundException('Post not found');
-
-    this.posts[postIndex] = post;
-
-    return post;
+  async update(id: number, post: UpdatePostDto) {
+    const updatedPost = await this.findOne(id);
+    return this.postsRepository.save({ ...updatedPost, ...post });
   }
 
-  createPost(post: CreatePostDto) {
-    const newPost = {
-      id: ++this.lastPostId,
-      ...post,
-    };
-    this.posts.push(newPost);
-
-    return newPost;
+  async create(post: CreatePostDto) {
+    const newPost = await this.postsRepository.create(post);
+    return this.postsRepository.save(newPost);
   }
 
-  deletePost(id: number) {
-    const postIndex = this.posts.findIndex((post) => post.id === id);
-    if (postIndex < 0) throw new NotFoundException('Post not found');
-
-    this.posts.splice(postIndex, 1);
+  async remove(id: number) {
+    const removedPost = await this.findOne(id);
+    return this.postsRepository.remove(removedPost);
   }
 }
